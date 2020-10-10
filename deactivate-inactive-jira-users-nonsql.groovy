@@ -70,7 +70,6 @@ def deactivate(User user) {
 long count = 0
 // Restrict to our Internal directory, with ID 1, otherwise we'll get errors trying to modify read-only LDAP users.
 foundUsers.findAll { ofbizUser -> ofbizUser.directoryId == 1 }.each { ofbizUser ->
-	log.error ofbizUser.class
         def UserWithAttributes user = crowdService.getUserWithAttributes(ofbizUser.getName());
         String lastLoginMillis = user.getValue('login.lastLoginMillis');
         if (lastLoginMillis?.isNumber()) {
