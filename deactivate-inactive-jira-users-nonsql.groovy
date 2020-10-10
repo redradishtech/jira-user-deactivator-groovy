@@ -24,6 +24,7 @@ import com.atlassian.crowd.search.builder.Restriction
 import com.atlassian.crowd.search.builder.QueryBuilder
 import com.atlassian.crowd.search.query.entity.EntityQuery
 import com.atlassian.crowd.search.EntityDescriptor
+import com.atlassian.jira.crowd.embedded.ofbiz.OfBizUser
 
 import org.joda.time.DateTime;
 import org.joda.time.Period;
@@ -40,7 +41,7 @@ CrowdService crowdService = ComponentAccessor.crowdService
 def SearchRestriction active = Restriction.on(UserTermKeys.ACTIVE).exactlyMatching(Boolean.TRUE)
 def foundUsers = crowdService.search(
         QueryBuilder.queryFor(User.class, EntityDescriptor.user()).with(active).returningAtMost(EntityQuery.ALL_RESULTS)
-        );
+        ) as ArrayList<OfBizUser>;
 
 log.info "Checking ${foundUsers.size()} active users for possible deactivation-due-to-inactivity"
 
@@ -68,8 +69,8 @@ def deactivate(User user) {
 
 long count = 0
 // Restrict to our Internal directory, with ID 1, otherwise we'll get errors trying to modify read-only LDAP users.
-foundUsers.findAll { it.directoryId == 1 }.each {
-        def ofbizUser = it as com.atlassian.jira.crowd.embedded.ofbiz.OfBizUser;
+foundUsers.findAll { ofbizUser -> ofbizUser.directoryId == 1 }.each { ofbizUser ->
+	log.error ofbizUser.class
         def UserWithAttributes user = crowdService.getUserWithAttributes(ofbizUser.getName());
         String lastLoginMillis = user.getValue('login.lastLoginMillis');
         if (lastLoginMillis?.isNumber()) {
