@@ -59,7 +59,7 @@ def deactivate(User user) {
         UserService.UpdateUserValidationResult updateUserValidationResult = userService.validateUpdateUser(updateUser);
         if (updateUserValidationResult.isValid()) {
                 // Comment out this line to do a dry run:
-                userService.updateUser(updateUserValidationResult)
+                //userService.updateUser(updateUserValidationResult)
                 return true
         } else {
                 log.error "Update of ${user.name} failed: ${updateUserValidationResult.getErrorCollection().getErrors().entrySet().join(',')}";
