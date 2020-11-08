@@ -20,8 +20,10 @@ WITH userlogins AS (
                 select * from globalpermissionentry WHERE permission IN ('USE', 'ADMINISTER')
              ) AS globalpermissionentry ON cwd_membership.lower_parent_name=globalpermissionentry.group_id
              LEFT JOIN (select * from cwd_user_attributes WHERE attribute_name in ('login.lastLoginMillis')) cwd_user_attributes ON user_id=cwd_user.id
-        WHERE cwd_user.active=1 AND
-		 (cwd_user.lower_email_address not like '%@mycompany.com' OR email_address='') -- Don't deactivate anyone @mycompany.com, for example
+        WHERE cwd_user.active=1 AND NOT (
+		cwd_user.lower_email_address like '%@mycompany.com'  -- Don't deactivate anyone @mycompany.com, for example
+		OR email_address=''
+	)
 )
 , lastassigns AS (
         SELECT DISTINCT
@@ -32,16 +34,16 @@ WITH userlogins AS (
         WHERE field='assignee' group by 1
 )
 SELECT distinct
-        user_name
-        , email_address
-        , to_char(created_date, 'YYYY-MM-DD') AS created
-        , to_char(lastlogin, 'YYYY-MM-DD') AS lastlogin
-        , to_char(lastassign, 'YYYY-MM-DD') AS lastassign
-        , (select count(*) from jiraissue where assignee=userlogins.user_name) AS assigneecount
+	user_name
+	, email_address
+	, to_char(created_date, 'YYYY-MM-DD') AS created
+	, to_char(lastlogin, 'YYYY-MM-DD') AS lastlogin
+	, to_char(lastassign, 'YYYY-MM-DD') AS lastassign
+	, (select count(*) from jiraissue where assignee=userlogins.user_name) AS assigneecount
 FROM userlogins LEFT JOIN lastassigns USING (user_name)
  WHERE
-        (created_date < now() - '6 months'::interval) AND
-        ((lastlogin < now() - '6 months'::interval) OR lastlogin is null) AND
-        ((lastassign < now() - '6 months'::interval) OR lastassign is null)
+	(created_date < now() - '6 months'::interval) AND
+	((lastlogin < now() - '6 months'::interval) OR lastlogin is null) AND 
+	((lastassign < now() - '6 months'::interval) OR lastassign is null)
 ORDER BY lastlogin desc nulls last ;
 GRANT select on queries.inactive_users to jira_ro;
