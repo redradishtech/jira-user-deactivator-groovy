@@ -2,15 +2,22 @@
 -- This is adapted from the Jira version (inactive_users.sql), with help from https://confluence.atlassian.com/confkb/how-to-identify-inactive-users-in-confluence-214335880.html
 -- Last updated: 8/Aug/21
 -- See https://www.redradishtech.com/display/KB/Automatically+deactivating+inactive+Jira+users
-WITH userlogins AS (select cwd_user.user_name,
+WITH users AS (
+    select cwd_user.*, cwd_directory.directory_name
+    from cwd_user
+             JOIN cwd_directory ON cwd_user.directory_id = cwd_directory.id
+    WHERE cwd_user.active = 'T'
+)
+   , userlogins AS (select users.user_name,
                            email_address,
-                           cwd_user.created_date,
+                           directory_name,
+                           users.created_date,
                            successdate AS lastlogin,
-                           cwd_user.directory_id
+                           users.directory_id
                     from logininfo
                              JOIN user_mapping ON user_mapping.user_key = logininfo.username
-                             JOIN cwd_user ON user_mapping.lower_username = cwd_user.lower_user_name
-                             JOIN cwd_membership ON cwd_membership.child_user_id = cwd_user.id
+                             JOIN users ON user_mapping.lower_username = users.lower_user_name
+                             JOIN cwd_membership ON cwd_membership.child_user_id = users.id
                              JOIN cwd_group ON cwd_membership.parent_id = cwd_group.id
                              JOIN (select distinct permgroupname
                                    from spacepermissions
@@ -18,11 +25,12 @@ WITH userlogins AS (select cwd_user.user_name,
                                   ON spacepermissions.permgroupname = cwd_group.lower_group_name
 )
    , lastmods AS (
-    select cwd_user.user_name
-         , content.lastmoddate AS lastpagemoddate
+    select distinct users.user_name
+                  , max(content.lastmoddate) AS lastpagemoddate
     from content
              JOIN user_mapping ON user_mapping.user_key = content.lastmodifier
-             JOIN cwd_user ON cwd_user.lower_user_name = user_mapping.lower_username
+             JOIN users ON users.lower_user_name = user_mapping.lower_username
+       group by user_name
 )
    , neverdeactivate AS (
     select cwd_user.user_name
@@ -31,11 +39,12 @@ WITH userlogins AS (select cwd_user.user_name,
              JOIN cwd_group ON cwd_membership.parent_id = cwd_group.id
     WHERE cwd_group.group_name = 'never-deactivate'
 )
-SELECT distinct user_name
+SELECT distinct '[~' || user_name || ']'
               , email_address
               , to_char(created_date, 'YYYY-MM-DD')    AS user_created
               , to_char(lastlogin, 'YYYY-MM-DD')       AS lastlogin
               , to_char(lastpagemoddate, 'YYYY-MM-DD') AS lastpagemoddate
+              , directory_name
 FROM userlogins
          LEFT JOIN lastmods USING (user_name)
 WHERE (created_date < now() - '6 months'::interval)
