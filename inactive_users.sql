@@ -55,7 +55,7 @@ LEFT JOIN lastwatch USING (user_name)
  WHERE
 	(created_date < now() - '6 months'::interval)
 	AND ((lastlogin < now() - '6 months'::interval) OR lastlogin is null) 
-	AND ((lastwatch < now() - '6 months'::interval) OR lastassign is null)
+	AND ((lastassign < now() - '6 months'::interval) OR lastassign is null)
 	AND ((lastwatch < now() - '6 months'::interval) OR lastwatch is null)
 	AND NOT EXISTS (select * from neverdeactivate where user_name=userlogins.user_name)
 ORDER BY lastlogin desc nulls last ;
