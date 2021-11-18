@@ -6,7 +6,7 @@ create schema if not exists queries;
 drop view if exists queries.inactive_users;
 create view queries.inactive_users AS
 WITH userlogins AS (
-        SELECT DISTINCT
+        SELECT DISTINCT ON (user_name) -- If LDAP is used there will be 2 directories ('LDAP' and 'Jira Internal Directory'), each with a duplicate set of cwd_user rows. The "DISTINCT ON (user_name) ... ORDER BY user_name, cwd_directory.directory_position ASC" gets us only the first cwd_user record by directory 'position', i.e. the one actually authenticated against that will have up-to-date lastLogin stats.
         user_name
         , email_address
         , cwd_user.created_date
@@ -24,6 +24,7 @@ WITH userlogins AS (
 		cwd_user.lower_email_address like '%@mycompany.com'  -- Don't deactivate anyone @mycompany.com, for example
 		OR email_address=''
 	)
+	ORDER BY user_name, cwd_directory.directory_position ASC
 )
 , lastassigns AS (
         SELECT DISTINCT
@@ -33,17 +34,28 @@ WITH userlogins AS (
         JOIN changeitem ci ON cg.id = ci.groupid
         WHERE field='assignee' group by 1
 )
+, lastwatch AS (
+	select cwd_user.user_name
+	, max(userassociation.created) AS lastwatch FROM app_user LEFT JOIN userassociation ON userassociation.source_name=app_user.user_key JOIN cwd_user USING (lower_user_name) WHERE association_type='WatchIssue' group by user_name
+)
+, neverdeactivate AS (
+	select cwd_user.user_name from cwd_user JOIN cwd_membership ON cwd_user.id=cwd_membership.child_id JOIN cwd_group ON cwd_membership.parent_id=cwd_group.id WHERE cwd_group.group_name='never-deactivate'
+)
 SELECT distinct
 	user_name
 	, email_address
 	, to_char(created_date, 'YYYY-MM-DD') AS created
 	, to_char(lastlogin, 'YYYY-MM-DD') AS lastlogin
 	, to_char(lastassign, 'YYYY-MM-DD') AS lastassign
+	, to_char(lastwatch, 'YYYY-MM-DD') AS lastwatch
 	, (select count(*) from jiraissue where assignee=userlogins.user_name) AS assigneecount
 FROM userlogins LEFT JOIN lastassigns USING (user_name)
+LEFT JOIN lastwatch USING (user_name)
  WHERE
-	(created_date < now() - '6 months'::interval) AND
-	((lastlogin < now() - '6 months'::interval) OR lastlogin is null) AND 
-	((lastassign < now() - '6 months'::interval) OR lastassign is null)
+	(created_date < now() - '6 months'::interval)
+	AND ((lastlogin < now() - '6 months'::interval) OR lastlogin is null) 
+	AND ((lastassign < now() - '6 months'::interval) OR lastassign is null)
+	AND ((lastwatch < now() - '6 months'::interval) OR lastwatch is null)
+	AND NOT EXISTS (select * from neverdeactivate where user_name=userlogins.user_name)
 ORDER BY lastlogin desc nulls last ;
 GRANT select on queries.inactive_users to jira_ro;
