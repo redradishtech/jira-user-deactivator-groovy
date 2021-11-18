@@ -1,5 +1,6 @@
 -- Creates a queries.inactive_users view in a Jira database, listing inactive user accounts that might be deactivated by deactivate-inactive-jira-users.groovy
 --
+-- Last updated: 8/Aug/21
 -- See https://www.redradishtech.com/display/KB/Automatically+deactivating+inactive+Jira+users
 
 create schema if not exists queries;
@@ -21,8 +22,9 @@ WITH userlogins AS (
              ) AS globalpermissionentry ON cwd_membership.lower_parent_name=globalpermissionentry.group_id
              LEFT JOIN (select * from cwd_user_attributes WHERE attribute_name in ('login.lastLoginMillis')) cwd_user_attributes ON user_id=cwd_user.id
         WHERE cwd_user.active=1 AND NOT (
-		cwd_user.lower_email_address like '%@mycompany.com'  -- Don't deactivate anyone @mycompany.com, for example
+		cwd_user.lower_email_address like '%@mycompany.com'
 		OR email_address=''
+		-- Specific exceptions can be added to the 'never-deactivate' group.
 	)
 	ORDER BY user_name, cwd_directory.directory_position ASC
 )
