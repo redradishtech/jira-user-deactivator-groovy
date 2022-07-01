@@ -1,4 +1,5 @@
 -- Just for fun, since we have an inactive_users.sql, here's a query showing 'active' users counting towards your Jira license count.
+-- @provides queries.active_users
 create schema if not exists queries;
 drop view if exists queries.active_users;
 create view queries.active_users AS

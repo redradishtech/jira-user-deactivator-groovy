@@ -3,6 +3,7 @@
 -- Last updated: 8/Aug/21
 -- See https://www.redradishtech.com/display/KB/Automatically+deactivating+inactive+Jira+users
 
+-- @provides queries.inactive_users
 create schema if not exists queries;
 drop view if exists queries.inactive_users;
 create view queries.inactive_users AS
