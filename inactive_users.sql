@@ -13,7 +13,7 @@ WITH userlogins AS (
         , email_address
         , cwd_user.created_date
         , timestamp with time zone 'epoch'+lastlogins.attribute_value::numeric/1000 * INTERVAL '1 second' AS lastlogin
-        , timestamp with time zone 'epoch'+lastauths.attribute_value::numeric/1000 * INTERVAL '1 second' AS lastauth
+        , timestamp with time zone 'epoch'+lastauths.attribute_value::numeric/1000 * INTERVAL '1 second' AS lastauth   -- REST queries count as authentications, not logins
         , cwd_user.directory_id
         FROM
         cwd_user
