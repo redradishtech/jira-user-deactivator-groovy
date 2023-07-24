@@ -3,6 +3,7 @@
 -- Last updated: 8/Aug/21
 -- See https://www.redradishtech.com/display/KB/Automatically+deactivating+inactive+Jira+users
 
+-- @provides queries.inactive_users
 create schema if not exists queries;
 drop view if exists queries.inactive_users;
 create view queries.inactive_users AS
@@ -12,7 +13,7 @@ WITH userlogins AS (
         , email_address
         , cwd_user.created_date
         , timestamp with time zone 'epoch'+lastlogins.attribute_value::numeric/1000 * INTERVAL '1 second' AS lastlogin
-        , timestamp with time zone 'epoch'+lastauths.attribute_value::numeric/1000 * INTERVAL '1 second' AS lastauth
+        , timestamp with time zone 'epoch'+lastauths.attribute_value::numeric/1000 * INTERVAL '1 second' AS lastauth   -- REST queries count as authentications, not logins
         , cwd_user.directory_id
         FROM
         cwd_user
@@ -57,11 +58,11 @@ SELECT distinct
 FROM userlogins LEFT JOIN lastassigns USING (user_name)
 LEFT JOIN lastwatch USING (user_name)
  WHERE
-	(created_date < now() - '3 months'::interval)
-	AND ((lastlogin < now() - '3 months'::interval) OR lastlogin is null) 
-	AND ((lastauth < now() - '3 months'::interval) OR lastauth is null) 
-	AND ((lastassign < now() - '3 months'::interval) OR lastassign is null)
-	AND ((lastwatch < now() - '3 months'::interval) OR lastwatch is null)
+	(created_date < now() - '6 months'::interval)
+	AND ((lastlogin < now() - '6 months'::interval) OR lastlogin is null) 
+	AND ((lastauth < now() - '6 months'::interval) OR lastauth is null) 
+	AND ((lastassign < now() - '6 months'::interval) OR lastassign is null)
+	AND ((lastwatch < now() - '6 months'::interval) OR lastwatch is null)
 	AND NOT EXISTS (select * from neverdeactivate where user_name=userlogins.user_name)
 ORDER BY lastlogin desc nulls last ;
 GRANT select on queries.inactive_users to jira_ro;
