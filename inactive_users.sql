@@ -1,6 +1,6 @@
 -- Creates a queries.inactive_users view in a Jira database, listing inactive user accounts that might be deactivated by deactivate-inactive-jira-users.groovy
 --
--- Last updated: 8/Aug/21
+-- Last updated: 24/Jul/23
 -- See https://www.redradishtech.com/display/KB/Automatically+deactivating+inactive+Jira+users
 
 -- @provides queries.inactive_users
