@@ -40,6 +40,15 @@ WITH userlogins AS (
 	select cwd_user.user_name
 	, max(userassociation.created) AS lastwatch FROM app_user LEFT JOIN userassociation ON userassociation.source_name=app_user.user_key JOIN cwd_user USING (lower_user_name) WHERE association_type='WatchIssue' group by user_name
 )
+, lastreactivate AS (
+	-- Check the audit log for account reactivations.
+	-- If an admin recently reactivated a dormant account, we don't want to deactivate it due to the user's inactivity
+	select
+		app_user.lower_user_name AS user_name
+		,max(to_timestamp("ENTITY_TIMESTAMP"/1000)::date) AS lastreactivate
+	 from "AO_C77861_AUDIT_ENTITY" JOIN app_user ON app_user.user_key="PRIMARY_RESOURCE_ID" where "PRIMARY_RESOURCE_TYPE"='USER' AND "CHANGE_VALUES" ~ '"from":"Active","to":"Inactive"}]$'
+	group by user_name
+)
 , neverdeactivate AS (
 	select cwd_user.user_name from cwd_user JOIN cwd_membership ON cwd_user.id=cwd_membership.child_id JOIN cwd_group ON cwd_membership.parent_id=cwd_group.id WHERE cwd_group.group_name='never-deactivate'
 )
@@ -50,14 +59,17 @@ SELECT distinct
 	, to_char(lastlogin, 'YYYY-MM-DD') AS lastlogin
 	, to_char(lastassign, 'YYYY-MM-DD') AS lastassign
 	, to_char(lastwatch, 'YYYY-MM-DD') AS lastwatch
+	, to_char(lastreactivate, 'YYYY-MM-DD') AS lastreactivate
 	, (select count(*) from jiraissue where assignee=userlogins.user_name) AS assigneecount
 FROM userlogins LEFT JOIN lastassigns USING (user_name)
 LEFT JOIN lastwatch USING (user_name)
+LEFT JOIN lastreactivate USING (user_name)
  WHERE
 	(created_date < now() - '6 months'::interval)
 	AND ((lastlogin < now() - '6 months'::interval) OR lastlogin is null) 
 	AND ((lastassign < now() - '6 months'::interval) OR lastassign is null)
 	AND ((lastwatch < now() - '6 months'::interval) OR lastwatch is null)
+	AND ((lastreactivate < now() - '6 months'::interval) OR lastreactivate is null)
 	AND NOT EXISTS (select * from neverdeactivate where user_name=userlogins.user_name)
 ORDER BY lastlogin desc nulls last ;
 GRANT select on queries.inactive_users to jira_ro;
