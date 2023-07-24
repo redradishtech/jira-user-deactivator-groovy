@@ -1,8 +1,9 @@
 -- Creates a queries.inactive_users view in a Jira database, listing inactive user accounts that might be deactivated by deactivate-inactive-jira-users.groovy
 --
--- Last updated: 8/Aug/21
+-- Last updated: 24/Jul/23
 -- See https://www.redradishtech.com/display/KB/Automatically+deactivating+inactive+Jira+users
 
+-- @provides queries.inactive_users
 create schema if not exists queries;
 drop view if exists queries.inactive_users;
 create view queries.inactive_users AS
@@ -11,7 +12,8 @@ WITH userlogins AS (
         user_name
         , email_address
         , cwd_user.created_date
-        , timestamp with time zone 'epoch'+attribute_value::numeric/1000 * INTERVAL '1 second' AS lastlogin
+        , timestamp with time zone 'epoch'+lastlogins.attribute_value::numeric/1000 * INTERVAL '1 second' AS lastlogin
+        , timestamp with time zone 'epoch'+lastauths.attribute_value::numeric/1000 * INTERVAL '1 second' AS lastauth   -- REST queries count as authentications, not logins
         , cwd_user.directory_id
         FROM
         cwd_user
@@ -20,7 +22,8 @@ WITH userlogins AS (
         JOIN (
                 select * from globalpermissionentry WHERE permission IN ('USE', 'ADMINISTER')
              ) AS globalpermissionentry ON cwd_membership.lower_parent_name=globalpermissionentry.group_id
-             LEFT JOIN (select * from cwd_user_attributes WHERE attribute_name in ('login.lastLoginMillis')) cwd_user_attributes ON user_id=cwd_user.id
+             LEFT JOIN (select * from cwd_user_attributes WHERE attribute_name in ('login.lastLoginMillis')) lastlogins ON lastlogins.user_id=cwd_user.id
+             LEFT JOIN (select * from cwd_user_attributes WHERE attribute_name in ('lastAuthenticated')) lastauths ON lastauths.user_id=cwd_user.id
         WHERE cwd_user.active=1 AND NOT (
 		cwd_user.lower_email_address like '%@mycompany.com'
 		OR email_address=''
@@ -57,6 +60,7 @@ SELECT distinct
 	, email_address
 	, to_char(created_date, 'YYYY-MM-DD') AS created
 	, to_char(lastlogin, 'YYYY-MM-DD') AS lastlogin
+	, to_char(lastauth, 'YYYY-MM-DD') AS lastauth
 	, to_char(lastassign, 'YYYY-MM-DD') AS lastassign
 	, to_char(lastwatch, 'YYYY-MM-DD') AS lastwatch
 	, to_char(lastreactivate, 'YYYY-MM-DD') AS lastreactivate
@@ -67,6 +71,7 @@ LEFT JOIN lastreactivate USING (user_name)
  WHERE
 	(created_date < now() - '6 months'::interval)
 	AND ((lastlogin < now() - '6 months'::interval) OR lastlogin is null) 
+	AND ((lastauth < now() - '6 months'::interval) OR lastauth is null) 
 	AND ((lastassign < now() - '6 months'::interval) OR lastassign is null)
 	AND ((lastwatch < now() - '6 months'::interval) OR lastwatch is null)
 	AND ((lastreactivate < now() - '6 months'::interval) OR lastreactivate is null)

@@ -71,6 +71,7 @@ long count = 0
 // Restrict to our Internal directory, with ID 1, otherwise we'll get errors trying to modify read-only LDAP users.
 foundUsers.findAll { ofbizUser -> ofbizUser.directoryId == 1 }.each { ofbizUser ->
         def UserWithAttributes user = crowdService.getUserWithAttributes(ofbizUser.getName());
+	// FIXME: also need to consider 'lastAuthenticated' if Confluence or an external client uses Jira for auth, and you want these authentications to be considered 'activity'
         String lastLoginMillis = user.getValue('login.lastLoginMillis');
         if (lastLoginMillis?.isNumber()) {
                 DateTime lastLogin = new DateTime(Long.parseLong(lastLoginMillis));

@@ -1,4 +1,5 @@
 -- Just for fun, since we have an inactive_users.sql, here's a query showing 'active' users counting towards your Jira license count.
+-- @provides queries.active_users
 create schema if not exists queries;
 drop view if exists queries.active_users;
 create view queries.active_users AS
@@ -18,20 +19,3 @@ SELECT DISTINCT
         WHERE cwd_user.active=1
        GROUP BY 1,2,3;
 grant select on queries.active_users to jira_ro;
-
-
-
-jira=> select * from licenserolesgroup;
-┌───────┬───────────────────┬────────────────────────┬───────────────┐
-│  id   │ license_role_name │        group_id        │ primary_group │
-├───────┼───────────────────┼────────────────────────┼───────────────┤
-│ 10000 │ jira-core         │ jira-administrators    │ N             │
-│ 10001 │ jira-core         │ jira-users             │ Y             │
-│ 10002 │ jira-software     │ jira-administrators    │ N             │
-│ 10003 │ jira-software     │ jira-users             │ Y             │
-│ 10100 │ jira-software     │ dlp-contractors        │ N             │
-│ 10200 │ jira-servicedesk  │ jira-servicedesk-users │ Y             │
-│ 10300 │ jira-software     │ c2c-developers         │ N             │
-└───────┴───────────────────┴────────────────────────┴───────────────┘
-(7 rows)
-
